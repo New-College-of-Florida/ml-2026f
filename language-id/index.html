@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Naive Bayes Language Classifier</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17212b;
+      --muted: #5d6875;
+      --paper: #f7f4ed;
+      --card: #fffdf8;
+      --line: #d8d2c5;
+      --accent: #176b63;
+      --accent-soft: #dceeea;
+      --shadow: 0 18px 50px rgb(54 46 33 / 10%);
+      font-family: Georgia, "Times New Roman", serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 8%, rgb(23 107 99 / 9%), transparent 28rem),
+        var(--paper);
+    }
+
+    button,
+    input,
+    textarea {
+      font: inherit;
+    }
+
+    main {
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 48px 0 64px;
+    }
+
+    header {
+      max-width: 780px;
+      margin-bottom: 28px;
+    }
+
+    h1,
+    h2,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      margin-bottom: 12px;
+      font-size: clamp(2.1rem, 6vw, 4.5rem);
+      font-weight: 500;
+      line-height: 0.98;
+      letter-spacing: -0.045em;
+    }
+
+    h1 em {
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    header p {
+      color: var(--muted);
+      font-size: 1.08rem;
+      line-height: 1.6;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.08fr) minmax(340px, 0.92fr);
+      gap: 24px;
+      align-items: start;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgb(255 253 248 / 94%);
+      box-shadow: var(--shadow);
+    }
+
+    .input-card,
+    .results-card,
+    .explanation {
+      padding: clamp(20px, 4vw, 32px);
+    }
+
+    .card-heading {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: baseline;
+      margin-bottom: 16px;
+    }
+
+    h2 {
+      margin-bottom: 0;
+      font-size: 1.35rem;
+      font-weight: 600;
+    }
+
+    .eyebrow,
+    .status,
+    .prior-note,
+    .source-note {
+      color: var(--muted);
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 0.78rem;
+      line-height: 1.45;
+    }
+
+    .eyebrow {
+      margin-bottom: 8px;
+      color: var(--accent);
+      font-weight: 750;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+    }
+
+    .mode-picker {
+      display: inline-grid;
+      grid-template-columns: 1fr 1fr;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #ede9df;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 0.85rem;
+    }
+
+    .mode-picker label {
+      cursor: pointer;
+    }
+
+    .mode-picker input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .mode-picker span {
+      display: block;
+      padding: 7px 13px;
+      border-radius: 999px;
+    }
+
+    .mode-picker input:checked + span {
+      color: white;
+      background: var(--accent);
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 260px;
+      resize: vertical;
+      padding: 18px;
+      border: 1px solid #bdb5a6;
+      border-radius: 12px;
+      outline: none;
+      color: var(--ink);
+      background: white;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 1rem;
+      line-height: 1.55;
+      transition: border-color 140ms ease, box-shadow 140ms ease;
+    }
+
+    textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px var(--accent-soft);
+    }
+
+    .samples {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-top: 12px;
+    }
+
+    .sample-button,
+    .reset-button {
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--ink);
+      background: transparent;
+      cursor: pointer;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 0.75rem;
+    }
+
+    .sample-button:hover,
+    .reset-button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .status {
+      min-height: 1.2em;
+      margin: 12px 0 0;
+    }
+
+    .meters {
+      display: grid;
+      gap: 16px;
+    }
+
+    .meter-row {
+      --language-color: var(--accent);
+    }
+
+    .meter-label {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 6px;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 0.9rem;
+    }
+
+    .meter-label strong {
+      font-weight: 680;
+    }
+
+    .meter-label output {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .meter-track {
+      height: 13px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #ebe6dc;
+    }
+
+    .meter-fill {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--language-color);
+      transition: width 120ms ease-out;
+    }
+
+    .winner .meter-label strong {
+      color: var(--language-color);
+    }
+
+    .priors {
+      margin-top: 28px;
+      padding-top: 22px;
+      border-top: 1px solid var(--line);
+    }
+
+    .prior-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+
+    .prior-heading h2 {
+      font-size: 1rem;
+    }
+
+    .prior-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 9px 14px;
+      margin-top: 14px;
+    }
+
+    .prior-control {
+      display: grid;
+      grid-template-columns: 1fr 70px;
+      gap: 8px;
+      align-items: center;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 0.78rem;
+    }
+
+    .prior-control input {
+      width: 100%;
+      padding: 5px 7px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .explanation {
+      margin-top: 24px;
+      box-shadow: none;
+    }
+
+    .formula {
+      overflow-x: auto;
+      margin: 16px 0;
+      padding: 14px 16px;
+      border-left: 4px solid var(--accent);
+      background: var(--accent-soft);
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 0.88rem;
+      white-space: nowrap;
+    }
+
+    .explanation p,
+    .explanation li {
+      line-height: 1.55;
+    }
+
+    .explanation ul {
+      padding-left: 1.2rem;
+    }
+
+    .sources {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px 12px;
+      margin-top: 10px;
+    }
+
+    .sources a {
+      color: var(--accent);
+    }
+
+    noscript {
+      display: block;
+      padding: 16px;
+      border: 1px solid #a93636;
+      background: #fff0f0;
+    }
+
+    @media (max-width: 820px) {
+      main {
+        padding-top: 28px;
+      }
+
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      textarea {
+        min-height: 210px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      main {
+        width: min(100% - 20px, 1120px);
+      }
+
+      .card-heading {
+        display: grid;
+      }
+
+      .prior-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">A tiny generative classifier</p>
+      <h1>What language does this <em>look like?</em></h1>
+      <p>
+        Type or paste text below. A Naive Bayes model compares six stories:
+        how likely is each language to generate these characters? Watch the
+        posterior probabilities change as evidence accumulates.
+      </p>
+    </header>
+
+    <language-naive-bayes></language-naive-bayes>
+
+    <noscript>This demonstration requires JavaScript.</noscript>
+  </main>
+
+  <script src="model-data.js"></script>
+  <script>
+    class LanguageNaiveBayes extends HTMLElement {
+      constructor() {
+        super();
+        this.models = window.LANGUAGE_MODEL_DATA;
+        this.alphabet = new Set(this.models.alphabet);
+        this.colors = {
+          en: "#2563eb",
+          fr: "#7c3aed",
+          de: "#475569",
+          es: "#ea580c",
+          pt: "#059669",
+          it: "#dc2626"
+        };
+        this.samples = {
+          en: "Machine learning finds useful patterns in examples.",
+          fr: "Les modèles apprennent à partir de nombreux exemples.",
+          de: "Maschinelles Lernen erkennt Muster in Beispieldaten.",
+          es: "El aprendizaje automático encuentra patrones en los datos.",
+          pt: "O aprendizado de máquina encontra padrões nos dados.",
+          it: "L'apprendimento automatico trova schemi nei dati."
+        };
+      }
+
+      connectedCallback() {
+        this.render();
+        this.bindEvents();
+        this.classify();
+      }
+
+      render() {
+        const sampleButtons = this.models.languages.map(language => `
+          <button class="sample-button" type="button" data-sample="${language.id}">
+            ${language.name} sample
+          </button>
+        `).join("");
+
+        const meters = this.models.languages.map(language => `
+          <div class="meter-row" data-language="${language.id}"
+               style="--language-color: ${this.colors[language.id]}">
+            <div class="meter-label">
+              <strong>${language.name}</strong>
+              <output>16.7%</output>
+            </div>
+            <div class="meter-track" role="meter" aria-label="${language.name} posterior"
+                 aria-valuemin="0" aria-valuemax="100" aria-valuenow="16.7">
+              <div class="meter-fill"></div>
+            </div>
+          </div>
+        `).join("");
+
+        const priors = this.models.languages.map(language => `
+          <label class="prior-control">
+            <span>${language.name}</span>
+            <input type="number" min="0" step="0.1" value="1"
+                   data-prior="${language.id}" aria-label="${language.name} prior weight">
+          </label>
+        `).join("");
+
+        const sources = this.models.languages.map(language => `
+          <a href="${language.source.url}" target="_blank" rel="noreferrer">
+            ${language.name}
+          </a>
+        `).join("");
+
+        this.innerHTML = `
+          <div class="layout">
+            <section class="card input-card">
+              <div class="card-heading">
+                <h2>Text to classify</h2>
+                <div class="mode-picker" role="radiogroup" aria-label="Model features">
+                  <label>
+                    <input type="radio" name="feature-mode" value="unigram" checked>
+                    <span>Unigrams</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="feature-mode" value="bigram">
+                    <span>Bigrams</span>
+                  </label>
+                </div>
+              </div>
+              <textarea aria-label="Text to classify"
+                placeholder="Type a sentence in one of the six languages…"
+                spellcheck="false"></textarea>
+              <div class="samples" aria-label="Example texts">${sampleButtons}</div>
+              <p class="status" aria-live="polite"></p>
+            </section>
+
+            <section class="card results-card">
+              <div class="card-heading">
+                <h2>Normalized posterior</h2>
+                <span class="eyebrow mode-label">Unigram model</span>
+              </div>
+              <div class="meters">${meters}</div>
+
+              <div class="priors">
+                <div class="prior-heading">
+                  <h2>Prior weights</h2>
+                  <button class="reset-button" type="button">Reset equal priors</button>
+                </div>
+                <p class="prior-note">
+                  Weights need not sum to one; the demo normalizes them.
+                  With no text, the meters show these priors.
+                </p>
+                <div class="prior-grid">${priors}</div>
+              </div>
+            </section>
+          </div>
+
+          <section class="card explanation">
+            <h2>What the classifier is doing</h2>
+            <div class="formula" data-formula>
+              score(language) = P(language) × ∏ P(character | language)
+            </div>
+            <p>
+              The text is lowercased, punctuation is treated as a boundary,
+              and runs of boundaries become one space. Spaces are features too.
+              Add-one smoothing gives every possible known unigram or bigram a
+              nonzero probability. Letters that occur in none of the six
+              training articles are skipped.
+            </p>
+            <p>
+              The implementation adds log probabilities instead of literally
+              multiplying many tiny values. This prevents numerical underflow
+              and produces exactly the same ranking. The six resulting scores
+              are normalized so the meter values sum to 100%.
+            </p>
+            <ul>
+              <li><strong>Unigrams</strong> ignore order and ask only which individual characters occur.</li>
+              <li><strong>Bigrams</strong> retain one step of order, distinguishing patterns such as <em>th</em>, <em>qu</em>, and <em>ch</em>.</li>
+              <li>The model is deliberately tiny to show how well a simple model can do on this task: its letter statistics come from the Wikipedia article on <em>Machine Learning</em> in each language.</li>
+            </ul>
+            <p class="source-note">
+              Training sources: plain-text extracts of each language's Wikipedia
+              article on machine learning, retrieved ${new Date(this.models.generatedAt).toLocaleDateString()}.
+              <span class="sources">${sources}</span>
+            </p>
+          </section>
+        `;
+      }
+
+      bindEvents() {
+        this.textarea = this.querySelector("textarea");
+        this.status = this.querySelector(".status");
+        this.modeLabel = this.querySelector(".mode-label");
+        this.formula = this.querySelector("[data-formula]");
+
+        this.textarea.addEventListener("input", () => {
+          const lowercased = this.textarea.value.toLowerCase();
+          if (lowercased !== this.textarea.value) {
+            const start = this.textarea.selectionStart;
+            const end = this.textarea.selectionEnd;
+            this.textarea.value = lowercased;
+            this.textarea.setSelectionRange(start, end);
+          }
+          this.classify();
+        });
+
+        this.querySelectorAll('input[name="feature-mode"]').forEach(input => {
+          input.addEventListener("change", () => this.classify());
+        });
+
+        this.querySelectorAll("[data-prior]").forEach(input => {
+          input.addEventListener("input", () => this.classify());
+        });
+
+        this.querySelectorAll("[data-sample]").forEach(button => {
+          button.addEventListener("click", () => {
+            this.textarea.value = this.samples[button.dataset.sample].toLowerCase();
+            this.classify();
+            this.textarea.focus();
+          });
+        });
+
+        this.querySelector(".reset-button").addEventListener("click", () => {
+          this.querySelectorAll("[data-prior]").forEach(input => {
+            input.value = "1";
+          });
+          this.classify();
+        });
+      }
+
+      get mode() {
+        return this.querySelector('input[name="feature-mode"]:checked').value;
+      }
+
+      normalizedText() {
+        const characters = [];
+        let pendingSpace = false;
+
+        for (const character of this.textarea.value.toLowerCase().normalize("NFC")) {
+          if (/\p{L}/u.test(character)) {
+            if (pendingSpace && characters.length) characters.push(" ");
+            characters.push(character);
+            pendingSpace = false;
+          } else {
+            pendingSpace = true;
+          }
+        }
+
+        return characters.join("");
+      }
+
+      priorProbabilities() {
+        const weights = this.models.languages.map(language => {
+          const input = this.querySelector(`[data-prior="${language.id}"]`);
+          const value = Number.parseFloat(input.value);
+          return Number.isFinite(value) && value >= 0 ? value : 0;
+        });
+        const total = weights.reduce((sum, value) => sum + value, 0);
+
+        if (total === 0) {
+          return weights.map(() => 1 / weights.length);
+        }
+        return weights.map(value => value / total);
+      }
+
+      features(text) {
+        const counts = new Map();
+        let used = 0;
+        let skipped = 0;
+
+        if (this.mode === "unigram") {
+          for (const character of text) {
+            if (!this.alphabet.has(character)) {
+              skipped += 1;
+              continue;
+            }
+            counts.set(character, (counts.get(character) || 0) + 1);
+            used += 1;
+          }
+        } else {
+          for (let index = 0; index < text.length - 1; index += 1) {
+            const first = text[index];
+            const second = text[index + 1];
+            if (!this.alphabet.has(first) || !this.alphabet.has(second)) {
+              skipped += 1;
+              continue;
+            }
+            const bigram = first + second;
+            counts.set(bigram, (counts.get(bigram) || 0) + 1);
+            used += 1;
+          }
+        }
+
+        return {counts, used, skipped};
+      }
+
+      logScores(featureCounts, priors) {
+        const alpha = this.models.smoothing;
+        const supportSize = this.mode === "unigram"
+          ? this.models.alphabet.length
+          : this.models.alphabet.length ** 2;
+
+        return this.models.languages.map((language, languageIndex) => {
+          const counts = this.mode === "unigram" ? language.unigrams : language.bigrams;
+          const total = this.mode === "unigram" ? language.unigramTotal : language.bigramTotal;
+          const denominator = total + alpha * supportSize;
+          let score = priors[languageIndex] > 0
+            ? Math.log(priors[languageIndex])
+            : Number.NEGATIVE_INFINITY;
+
+          for (const [feature, frequency] of featureCounts) {
+            const count = counts[feature] || 0;
+            score += frequency * Math.log((count + alpha) / denominator);
+          }
+          return score;
+        });
+      }
+
+      normalizeScores(logScores) {
+        const finiteScores = logScores.filter(Number.isFinite);
+        if (!finiteScores.length) {
+          return logScores.map(() => 1 / logScores.length);
+        }
+        const maximum = Math.max(...finiteScores);
+        const exponentials = logScores.map(score =>
+          Number.isFinite(score) ? Math.exp(score - maximum) : 0
+        );
+        const total = exponentials.reduce((sum, value) => sum + value, 0);
+        return exponentials.map(value => value / total);
+      }
+
+      classify() {
+        const text = this.normalizedText();
+        const priors = this.priorProbabilities();
+        const {counts, used, skipped} = this.features(text);
+        const posteriors = used
+          ? this.normalizeScores(this.logScores(counts, priors))
+          : priors;
+        const winner = posteriors.indexOf(Math.max(...posteriors));
+
+        this.models.languages.forEach((language, index) => {
+          const row = this.querySelector(`[data-language="${language.id}"]`);
+          const percentage = posteriors[index] * 100;
+          row.classList.toggle("winner", used > 0 && index === winner);
+          row.querySelector("output").textContent = `${percentage.toFixed(1)}%`;
+          row.querySelector(".meter-fill").style.width = `${percentage}%`;
+          row.querySelector(".meter-track").setAttribute("aria-valuenow", percentage.toFixed(1));
+        });
+
+        const featureName = this.mode === "unigram" ? "character" : "bigram";
+        this.modeLabel.textContent = `${this.mode === "unigram" ? "Unigram" : "Bigram"} model`;
+        this.formula.textContent = this.mode === "unigram"
+          ? "score(language) = P(language) × ∏ P(character | language)"
+          : "score(language) = P(language) × ∏ P(character bigram | language)";
+
+        if (!used) {
+          this.status.textContent = "No usable evidence yet; the meters show the current priors.";
+        } else {
+          const skippedMessage = skipped
+            ? ` ${skipped} unknown ${skipped === 1 ? "feature was" : "features were"} skipped.`
+            : "";
+          this.status.textContent = `${used} ${featureName}${used === 1 ? "" : "s"} used.${skippedMessage}`;
+        }
+      }
+    }
+
+    customElements.define("language-naive-bayes", LanguageNaiveBayes);
+  </script>
+</body>
+</html>
