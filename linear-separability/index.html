@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Linear Separability: Watch the Boundary Learn</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #20201e;
+      --muted: #68665f;
+      --paper: #f4f0e6;
+      --panel: #fffdf8;
+      --line: #d9d0c1;
+      --red: #a43d35;
+      --red-soft: #f3dfda;
+      --blue: #315f78;
+      --blue-soft: #dfeaf0;
+      --green: #28705f;
+      --gold: #aa7a25;
+      font-family: Georgia, "Times New Roman", serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 88% 5%, rgba(49, 95, 120, 0.09), transparent 28rem),
+        var(--paper);
+      color: var(--ink);
+    }
+
+    button, input, select { font: inherit; }
+
+    main {
+      width: min(1240px, calc(100% - 2rem));
+      margin: 0 auto;
+      padding: 3.5rem 0 5rem;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+    h1 {
+      max-width: 1040px;
+      margin-bottom: 1rem;
+      font-size: clamp(2.7rem, 7vw, 5.5rem);
+      font-weight: 500;
+      letter-spacing: -0.045em;
+      line-height: 0.94;
+    }
+    h2 { margin-bottom: 0.65rem; font-size: clamp(1.45rem, 3vw, 2.05rem); font-weight: 500; }
+    h3 { margin-bottom: 0.45rem; font-size: 1.08rem; }
+
+    .eyebrow {
+      margin-bottom: 0.7rem;
+      color: var(--red);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+    }
+    .lede { max-width: 850px; color: #4f4b44; font-size: 1.14rem; line-height: 1.62; }
+
+    .panel {
+      margin-top: 1rem;
+      padding: clamp(1rem, 3vw, 1.6rem);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255, 253, 248, 0.96);
+      box-shadow: 0 14px 40px rgba(53, 45, 34, 0.055);
+    }
+
+    .preset-row, .button-row, .legend, .edit-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+      align-items: center;
+    }
+
+    button {
+      min-height: 2.65rem;
+      padding: 0.55rem 0.95rem;
+      border: 1px solid #aaa193;
+      border-radius: 8px;
+      background: #fffefb;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    button:hover:not(:disabled) { border-color: var(--blue); color: var(--blue); }
+    button:disabled { cursor: not-allowed; opacity: 0.42; }
+    button.primary { border-color: var(--blue); background: var(--blue); color: white; }
+    button.primary:hover:not(:disabled) { background: #24495e; color: white; }
+    button.stop { border-color: var(--red); color: var(--red); }
+    button.active { border-color: var(--blue); background: var(--blue-soft); color: #24495e; }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1.55fr) minmax(19rem, 0.65fr);
+      gap: 1rem;
+      align-items: start;
+    }
+
+    .canvas-wrap {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fffefa;
+    }
+    canvas { display: block; width: 100%; height: auto; touch-action: none; }
+    #plot { cursor: crosshair; }
+
+    .plot-label {
+      position: absolute;
+      color: var(--muted);
+      font: 0.75rem ui-monospace, SFMono-Regular, Consolas, monospace;
+      pointer-events: none;
+    }
+    .plot-label.x { right: 0.7rem; bottom: 0.45rem; }
+    .plot-label.y { left: 0.55rem; top: 0.45rem; }
+
+    .side { display: grid; gap: 0.9rem; }
+    .control-block {
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fffefa;
+    }
+    .control-block label { display: grid; gap: 0.28rem; color: var(--muted); font-size: 0.8rem; }
+    .control-block select, .control-block input[type="number"] {
+      width: 100%;
+      min-height: 2.5rem;
+      padding: 0.45rem 0.55rem;
+      border: 1px solid #aaa193;
+      border-radius: 7px;
+      background: white;
+      color: var(--ink);
+    }
+    .control-block input[type="range"] { width: 100%; accent-color: var(--blue); }
+    .control-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .control-grid .wide { grid-column: 1 / -1; }
+    [hidden] { display: none !important; }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--line);
+      gap: 1px;
+    }
+    .summary div { padding: 0.7rem; background: #fffefa; text-align: center; }
+    .summary strong { display: block; color: var(--blue); font-size: 1.25rem; font-weight: 500; }
+    .summary span { color: var(--muted); font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; }
+
+    .status {
+      margin: 0;
+      padding: 0.8rem 1rem;
+      border-left: 4px solid var(--blue);
+      background: var(--blue-soft);
+      line-height: 1.45;
+    }
+    .status.warning { border-color: var(--gold); background: #faf2df; }
+
+    .dot { display: inline-block; width: 0.82rem; height: 0.82rem; border-radius: 50%; vertical-align: -0.08rem; }
+    .dot.red { background: var(--red); }
+    .dot.blue { background: var(--blue); }
+    .legend { margin-top: 0.75rem; color: var(--muted); font-size: 0.86rem; }
+    .legend span { margin-right: 0.55rem; }
+
+    .class-button.red.active { border-color: var(--red); background: var(--red-soft); color: var(--red); }
+    .class-button.blue.active { border-color: var(--blue); background: var(--blue-soft); color: var(--blue); }
+
+    .surface-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(18rem, 0.6fr);
+      gap: 1rem;
+      align-items: center;
+    }
+    .surface-note { color: var(--muted); line-height: 1.55; }
+    .surface-note strong { color: var(--ink); }
+
+    .algorithm-note {
+      margin: 0.8rem 0 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+    code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em; }
+
+    @media (max-width: 850px) {
+      .workspace, .surface-grid { grid-template-columns: 1fr; }
+      main { width: min(100% - 1rem, 720px); padding-top: 2rem; }
+    }
+    @media (max-width: 520px) {
+      .control-grid { grid-template-columns: 1fr; }
+      .control-grid .wide { grid-column: auto; }
+      button { flex: 1 1 auto; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="eyebrow">Interactive linear classifiers</p>
+    <h1>Can one straight line separate the classes?</h1>
+    <p class="lede">Choose a dataset, train a classifier, and watch its boundary move one example at a time. Linear models can rotate and shift one line; kernel models can bend the boundary. The difference is easiest to see when the data refuse to cooperate.</p>
+
+    <section class="panel" aria-labelledby="data-heading">
+      <h2 id="data-heading">1. Choose the evidence</h2>
+      <div class="preset-row" id="presets"></div>
+      <p class="algorithm-note" id="dataset-note"></p>
+    </section>
+
+    <section class="panel workspace" aria-label="Classifier workspace">
+      <div>
+        <div class="canvas-wrap">
+          <canvas id="plot" width="760" height="620" aria-label="Two-dimensional classification plot"></canvas>
+          <span class="plot-label y">feature 2</span>
+          <span class="plot-label x">feature 1</span>
+        </div>
+        <div class="legend">
+          <span><i class="dot red"></i> red, y = +1</span>
+          <span><i class="dot blue"></i> blue, y = −1</span>
+          <span>Click the plot to add a point.</span>
+        </div>
+      </div>
+
+      <aside class="side">
+        <div class="control-block">
+          <h3>Model</h3>
+          <label>Classifier
+            <select id="algorithm">
+              <option value="perceptron">Perceptron</option>
+              <option value="averaged">Averaged perceptron</option>
+              <option value="ensemble">Ensembled perceptron</option>
+              <option value="logistic">Logistic regression</option>
+              <option value="svm">Linear SVM</option>
+              <option value="gaussian-nb">Gaussian Naive Bayes</option>
+              <option value="knn">k-nearest neighbors</option>
+              <option value="neural-network">Neural network (one hidden layer)</option>
+              <option value="kernel-perceptron">RBF kernel perceptron</option>
+              <option value="kernel-svm">RBF kernel SVM</option>
+            </select>
+          </label>
+          <p class="algorithm-note" id="algorithm-note"></p>
+        </div>
+
+        <div class="control-block">
+          <h3>Model settings</h3>
+          <div class="control-grid">
+            <label data-control="learning-rate">Learning rate
+              <input id="learning-rate" type="number" min="0.001" max="2" step="0.01" value="0.15">
+            </label>
+            <label data-control="epochs">Epochs
+              <input id="epochs" type="number" min="1" max="200" step="1" value="30">
+            </label>
+            <label data-control="lambda">Regularization λ
+              <input id="lambda" type="number" min="0" max="1" step="0.001" value="0.01">
+            </label>
+            <label data-control="gamma">RBF γ
+              <input id="gamma" type="number" min="0.1" max="30" step="0.1" value="4">
+            </label>
+            <label data-control="ensemble-size">Ensemble members
+              <input id="ensemble-size" type="number" min="2" max="100" step="1" value="20">
+            </label>
+            <label data-control="neighbors">Neighbors, k
+              <input id="neighbors" type="number" min="1" max="99" step="2" value="5">
+            </label>
+            <label data-control="hidden-units">Hidden units
+              <input id="hidden-units" type="number" min="1" max="40" step="1" value="5">
+            </label>
+            <label data-control="activation">Hidden activation
+              <select id="activation">
+                <option value="tanh">tanh</option>
+                <option value="sigmoid">sigmoid</option>
+                <option value="relu">ReLU</option>
+              </select>
+            </label>
+            <label data-control="speed">Animation speed
+              <input id="speed" type="range" min="1" max="100" value="62">
+            </label>
+          </div>
+          <div class="button-row" style="margin-top: 0.9rem">
+            <button class="primary" id="train">Train</button>
+            <button id="step">One example</button>
+            <button class="stop" id="stop" disabled>Stop</button>
+            <button id="reset">Reset model</button>
+          </div>
+        </div>
+
+        <div class="summary" aria-live="polite">
+          <div><strong id="accuracy">50.0%</strong><span id="accuracy-label">accuracy</span></div>
+          <div><strong id="updates">0</strong><span>updates</span></div>
+          <div><strong id="epoch">0 / 0</strong><span>epoch</span></div>
+          <div><strong id="example">—</strong><span>current example</span></div>
+        </div>
+        <p class="status" id="status">Select a model and begin training.</p>
+
+        <div class="control-block">
+          <h3>Edit the dataset</h3>
+          <div class="edit-row">
+            <button class="class-button red active" data-add-label="1">Add red</button>
+            <button class="class-button blue" data-add-label="-1">Add blue</button>
+            <button id="undo">Undo point</button>
+            <button id="clear">Clear all</button>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="panel" aria-labelledby="surface-heading">
+      <div class="surface-grid">
+        <div>
+          <h2 id="surface-heading">2. Lift the score into three dimensions</h2>
+          <div class="canvas-wrap"><canvas id="surface" width="820" height="470" aria-label="Three-dimensional classifier score surface"></canvas></div>
+        </div>
+        <div class="surface-note">
+          <p><strong>The height is the classifier’s score.</strong> The pale horizontal sheet marks score zero. Above it, the model predicts red; below it, blue.</p>
+          <p id="surface-explanation">For a linear classifier, the score surface is a plane. Its intersection with score zero is the straight decision boundary shown above.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
