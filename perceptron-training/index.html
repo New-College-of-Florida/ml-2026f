@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Training a Perceptron, One Mistake at a Time</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #20201e;
+      --muted: #68665f;
+      --paper: #f4f0e6;
+      --panel: #fffdf8;
+      --line: #d9d0c1;
+      --duck: #28705f;
+      --duck-soft: #dcece5;
+      --goose: #a43d35;
+      --goose-soft: #f3dfda;
+      --blue: #315f78;
+      --blue-soft: #dfeaf0;
+      --gold: #aa7a25;
+      font-family: Georgia, "Times New Roman", serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 88% 5%, rgba(49, 95, 120, 0.09), transparent 28rem),
+        var(--paper);
+      color: var(--ink);
+    }
+
+    button, input { font: inherit; }
+
+    main {
+      width: min(1160px, calc(100% - 2rem));
+      margin: 0 auto;
+      padding: 3.5rem 0 5rem;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+
+    h1 {
+      max-width: 950px;
+      margin-bottom: 1rem;
+      font-size: clamp(2.7rem, 7vw, 5.5rem);
+      font-weight: 500;
+      letter-spacing: -0.045em;
+      line-height: 0.94;
+    }
+
+    h2 { margin-bottom: 0.65rem; font-size: clamp(1.55rem, 3.2vw, 2.2rem); font-weight: 500; }
+    h3 { margin-bottom: 0.55rem; font-size: 1.12rem; }
+
+    .eyebrow {
+      margin-bottom: 0.7rem;
+      color: var(--goose);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+    }
+
+    .lede { max-width: 780px; color: #4f4b44; font-size: 1.14rem; line-height: 1.62; }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      max-width: 34rem;
+      margin-top: 1.5rem;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--line);
+      gap: 1px;
+    }
+
+    .summary div { padding: 0.8rem; background: rgba(255, 253, 248, 0.95); text-align: center; }
+    .summary strong { display: block; color: var(--blue); font-size: 1.45rem; font-weight: 500; }
+    .summary span { color: var(--muted); font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; }
+
+    .panel {
+      margin-top: 1rem;
+      padding: clamp(1rem, 3vw, 1.6rem);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255, 253, 248, 0.96);
+      box-shadow: 0 14px 40px rgba(53, 45, 34, 0.055);
+    }
+
+    .rule-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(16rem, 0.65fr);
+      gap: 1rem;
+      align-items: stretch;
+    }
+
+    .algorithm {
+      display: grid;
+      gap: 0.55rem;
+      padding: 1rem;
+      border-radius: 10px;
+      background: #f4efe6;
+      line-height: 1.45;
+    }
+
+    .algorithm-row { display: grid; grid-template-columns: 9rem 1fr; gap: 0.8rem; }
+    .algorithm-row strong { color: var(--blue); }
+
+    .tie-note {
+      display: grid;
+      place-content: center;
+      padding: 1rem;
+      border-left: 4px solid var(--gold);
+      background: #faf2df;
+      line-height: 1.5;
+    }
+
+    .tie-note strong { color: #765313; }
+
+    button {
+      min-height: 2.65rem;
+      padding: 0.55rem 0.95rem;
+      border: 1px solid #aaa193;
+      border-radius: 8px;
+      background: #fffefb;
+      color: var(--ink);
+      cursor: pointer;
+    }
+
+    button:hover:not(:disabled) { border-color: var(--blue); color: var(--blue); }
+    button:disabled { cursor: not-allowed; opacity: 0.4; }
+
+    button.primary { border-color: var(--blue); background: var(--blue); color: white; }
+    button.primary:hover:not(:disabled) { background: #24495e; color: white; }
+
+    .controls {
+      display: grid;
+      grid-template-columns: auto auto auto minmax(9rem, 1fr);
+      gap: 0.6rem;
+      align-items: center;
+    }
+
+    input[type="range"] { width: 100%; accent-color: var(--blue); }
+
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 0.4rem;
+      margin: 1rem 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .timeline button {
+      width: 100%;
+      min-height: 4.2rem;
+      padding: 0.45rem;
+      border-color: transparent;
+      background: transparent;
+      text-align: center;
+    }
+
+    .timeline button.active { border-color: var(--blue); background: var(--panel); color: var(--blue); }
+    .timeline button.done { background: rgba(223, 234, 240, 0.55); }
+    .timeline-label { display: block; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+    .timeline-result { display: block; margin-top: 0.2rem; color: var(--muted); font-size: 0.8rem; }
+
+    .status {
+      margin: 1rem 0 0;
+      padding: 0.8rem 1rem;
+      border-left: 4px solid var(--blue);
+      background: var(--blue-soft);
+      line-height: 1.5;
+    }
+
+    .example-grid, .score-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+    }
+
+    .example-card, .score-card {
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fffefa;
+    }
+
+    .example-card.duck, .score-card.duck { border-top: 4px solid var(--duck); }
+    .example-card.goose, .score-card.goose { border-top: 4px solid var(--goose); }
+    .example-card.current { box-shadow: 0 0 0 3px rgba(49, 95, 120, 0.2); }
+
+    .class-label {
+      display: inline-block;
+      margin-bottom: 0.65rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .duck .class-label, .duck-text { color: var(--duck); }
+    .goose .class-label, .goose-text { color: var(--goose); }
+
+    .feature-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+
+    .feature-chip {
+      padding: 0.32rem 0.48rem;
+      border-radius: 5px;
+      background: #eee8de;
+      color: #918a80;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 0.82rem;
+    }
+
+    .feature-chip.on { background: var(--blue-soft); color: #24495e; font-weight: 700; }
+
+    .lesson-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(17rem, 0.7fr);
+      gap: 1rem;
+      align-items: start;
+    }
+
+    .stage-heading {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 1rem;
+      align-items: center;
+      margin-bottom: 1.1rem;
+    }
+
+    .stage-badge {
+      display: grid;
+      width: 3rem;
+      height: 3rem;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--blue);
+      color: white;
+      font-size: 1.15rem;
+    }
+
+    .stage-heading p { margin-bottom: 0; color: var(--muted); }
+
+    .vector-wrap { overflow-x: auto; }
+
+    .vector-grid {
+      display: grid;
+      grid-template-columns: 7.2rem repeat(5, minmax(5.3rem, 1fr));
+      min-width: 670px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--line);
+      gap: 1px;
+    }
+
+    .vector-cell {
+      display: grid;
+      min-height: 3.1rem;
+      padding: 0.38rem;
+      place-items: center;
+      background: #fffefa;
+      text-align: center;
+      font: 0.86rem ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .vector-cell.heading, .vector-cell.row-label {
+      background: #f3eee5;
+      color: #555149;
+      font-family: Georgia, "Times New Roman", serif;
+      font-weight: 700;
+    }
+
+    .vector-cell.row-label { justify-items: start; padding-left: 0.7rem; }
+    .vector-cell.changed { background: #faf2df; color: #765313; font-weight: 700; }
+    .vector-cell.delta-plus { background: var(--duck-soft); color: var(--duck); }
+    .vector-cell.delta-minus { background: var(--goose-soft); color: var(--goose); }
+
+    .weights-title { display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: space-between; align-items: baseline; }
+    .weights-title p { margin-bottom: 0.55rem; color: var(--muted); }
+
+    .formula {
+      overflow-x: auto;
+      padding: 0.75rem;
+      border-radius: 8px;
+      background: #f4efe6;
+      font: 0.9rem/1.55 ui-monospace, SFMono-Regular, Consolas, monospace;
+      white-space: nowrap;
+    }
+
+    .score-value { margin: 0.7rem 0 0; font: 1.35rem ui-monospace, SFMono-Regular, Consolas, monospace; }
+
+    .prediction {
+      margin-top: 1rem;
+      padding: 0.85rem 1rem;
+      border-left: 4px solid var(--blue);
+      background: var(--blue-soft);
+      line-height: 1.5;
+    }
+
+    .prediction.mistake { border-left-color: var(--goose); background: var(--goose-soft); }
+    .prediction.correct { border-left-color: var(--duck); background: var(--duck-soft); }
+
+    .update-rule {
+      margin: 1rem 0;
+      padding: 0.85rem 1rem;
+      border-left: 4px solid var(--gold);
+      background: #faf2df;
+      line-height: 1.55;
+    }
+
+    .epoch-card { padding: 1rem; border-radius: 10px; background: #f4efe6; }
+    .epoch-card + .epoch-card { margin-top: 0.7rem; }
+    .epoch-card.active { box-shadow: inset 4px 0 0 var(--blue); }
+    .epoch-errors { font: 1.5rem ui-monospace, SFMono-Regular, Consolas, monospace; }
+
+    .converged {
+      margin-top: 1rem;
+      padding: 1rem;
+      border: 2px solid var(--duck);
+      border-radius: 10px;
+      background: var(--duck-soft);
+      line-height: 1.55;
+    }
+
+    .evaluation-table { width: 100%; margin-top: 1rem; border-collapse: collapse; }
+    .evaluation-table th, .evaluation-table td { padding: 0.55rem; border-bottom: 1px solid #e4ddd1; text-align: center; }
+    .evaluation-table th:first-child, .evaluation-table td:first-child { text-align: left; }
+    .check { color: var(--duck); font-weight: 700; }
+    .mobile-hint { display: none; color: var(--blue); font-size: 0.88rem; }
+
+    @media (max-width: 850px) {
+      .rule-grid, .lesson-grid, .example-grid, .score-grid { grid-template-columns: 1fr; }
+      .timeline { grid-template-columns: repeat(3, 1fr); }
+      .mobile-hint { display: block; }
+    }
+
+    @media (max-width: 540px) {
+      main { width: min(100% - 1rem, 1160px); padding-top: 2rem; }
+      .panel { border-radius: 10px; }
+      .controls { grid-template-columns: repeat(3, auto); }
+      .controls input { grid-column: 1 / -1; }
+      .timeline { grid-template-columns: repeat(2, 1fr); }
+      .algorithm-row { grid-template-columns: 1fr; gap: 0.15rem; }
+      .stage-heading { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">Mistake-driven learning, step by step</p>
+      <h1>Training a perceptron, one mistake at a time</h1>
+      <p class="lede">Watch a multiclass perceptron score a duck and a goose, update two aligned weight vectors after each mistake, and stop only after an entire epoch passes without an error.</p>
+      <div class="summary" aria-label="Walkthrough summary">
+        <div><strong>2</strong><span>examples</span></div>
+        <div><strong>5</strong><span>features</span></div>
+        <div><strong>2</strong><span>updates</span></div>
+      </div>
+    </header>
+
+    <section class="panel rule-grid" aria-labelledby="rule-heading">
+      <div>
+        <h2 id="rule-heading">The training rule</h2>
+        <div class="algorithm">
+          <div class="algorithm-row"><strong>Predict</strong><span>Choose the class with the largest <em>f</em>(x) · <em>w</em><sub>class</sub>.</span></div>
+          <div class="algorithm-row"><strong>On a mistake</strong><span>Add <em>f</em>(x) to the gold-class weights and subtract it from the predicted-class weights.</span></div>
+          <div class="algorithm-row"><strong>Stop</strong><span>Finish when a complete epoch contains zero mistakes.</span></div>
+        </div>
+      </div>
+      <aside class="tie-note">
+        <p><strong>Fixed tie rule:</strong> predict <em>goose</em>.</p>
+        <p>This matters immediately because both all-zero weight vectors give the first duck a score of 0.</p>
+      </aside>
+    </section>
+
+    <section class="panel" aria-labelledby="examples-heading">
+      <h2 id="examples-heading">The training set</h2>
+      <div id="examples" class="example-grid"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="walkthrough-heading">
+      <h2 id="walkthrough-heading">Walk through training</h2>
+      <div class="controls">
+        <button id="previous" type="button">Previous</button>
+        <button id="play" class="primary" type="button">Play training</button>
+        <button id="next" type="button">Next</button>
+        <input id="step" type="range" min="0" max="4" value="0" aria-label="Training step">
+      </div>
+      <ol id="timeline" class="timeline"></ol>
+      <p id="status" class="status" aria-live="polite"></p>
+    </section>
+
+    <div class="lesson-grid">
+      <section id="stage" class="panel" aria-live="polite"></section>
+      <aside class="panel" aria-labelledby="epochs-heading">
+        <h2 id="epochs-heading">Epochs</h2>
+        <div id="epochs"></div>
+      </aside>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
