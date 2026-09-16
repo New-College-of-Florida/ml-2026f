@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How Languages Become a Tree</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #20201e;
+      --muted: #68665f;
+      --paper: #f5f1e7;
+      --panel: #fffdf7;
+      --line: #d8d0c1;
+      --accent: #a23b32;
+      --accent-dark: #74251f;
+      --blue: #275d69;
+      --soft-blue: #dcebed;
+      font-family: Georgia, "Times New Roman", serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 12% 8%, rgba(162, 59, 50, 0.08), transparent 24rem),
+        var(--paper);
+      color: var(--ink);
+    }
+
+    button, select, input { font: inherit; }
+
+    main {
+      width: min(1180px, calc(100% - 2rem));
+      margin: 0 auto;
+      padding: 3.5rem 0 5rem;
+    }
+
+    header {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(16rem, 0.7fr);
+      gap: 2rem;
+      align-items: end;
+      margin-bottom: 2rem;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+
+    h1 {
+      max-width: 760px;
+      margin-bottom: 0.8rem;
+      font-size: clamp(2.5rem, 7vw, 5.5rem);
+      font-weight: 500;
+      letter-spacing: -0.045em;
+      line-height: 0.92;
+    }
+
+    h2 {
+      margin-bottom: 0.8rem;
+      font-size: clamp(1.45rem, 3vw, 2rem);
+      font-weight: 500;
+    }
+
+    h3 {
+      margin-bottom: 0.6rem;
+      font-size: 1.08rem;
+    }
+
+    .lede {
+      max-width: 700px;
+      margin-bottom: 0;
+      color: #4e4b45;
+      font-size: 1.13rem;
+      line-height: 1.6;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--line);
+    }
+
+    .summary div {
+      padding: 0.9rem 0.65rem;
+      background: rgba(255, 253, 247, 0.92);
+      text-align: center;
+    }
+
+    .summary strong {
+      display: block;
+      color: var(--accent-dark);
+      font-size: 1.55rem;
+      font-weight: 500;
+    }
+
+    .summary span {
+      color: var(--muted);
+      font-size: 0.78rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .panel {
+      margin-top: 1rem;
+      padding: clamp(1rem, 3vw, 1.6rem);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255, 253, 247, 0.94);
+      box-shadow: 0 14px 40px rgba(59, 49, 35, 0.06);
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem 1rem;
+      align-items: end;
+    }
+
+    label.control {
+      display: grid;
+      gap: 0.35rem;
+      min-width: min(100%, 19rem);
+      color: var(--muted);
+      font-size: 0.84rem;
+      font-weight: 700;
+      letter-spacing: 0.035em;
+      text-transform: uppercase;
+    }
+
+    select, button {
+      min-height: 2.7rem;
+      border: 1px solid #aaa193;
+      border-radius: 8px;
+      background: #fffefb;
+      color: var(--ink);
+    }
+
+    select { padding: 0.55rem 2.5rem 0.55rem 0.75rem; }
+
+    button {
+      padding: 0.55rem 0.9rem;
+      cursor: pointer;
+    }
+
+    button:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--accent-dark);
+    }
+
+    button.primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: white;
+    }
+
+    button.primary:hover:not(:disabled) {
+      background: var(--accent-dark);
+      color: white;
+    }
+
+    button:disabled { cursor: not-allowed; opacity: 0.45; }
+
+    .metric-note {
+      flex: 1 1 22rem;
+      margin: 0 0 0.15rem;
+      color: var(--muted);
+      font-size: 0.94rem;
+      line-height: 1.45;
+    }
+
+    .visual-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.7fr) minmax(16rem, 0.75fr);
+      gap: 1rem;
+      align-items: stretch;
+    }
+
+    .tree-panel { min-width: 0; }
+
+    .step-controls {
+      display: grid;
+      grid-template-columns: auto auto auto minmax(8rem, 1fr);
+      gap: 0.55rem;
+      align-items: center;
+      margin-bottom: 0.8rem;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .status {
+      min-height: 3.1rem;
+      margin-bottom: 0;
+      color: #4d4942;
+      line-height: 1.45;
+    }
+
+    #tree {
+      display: block;
+      width: 100%;
+      height: auto;
+      overflow: visible;
+      border-top: 1px solid #e8e1d5;
+    }
+
+    .axis-line, .axis-tick { stroke: #c9c0b2; stroke-width: 1; }
+    .axis-label { fill: var(--muted); font-size: 12px; }
+    .branch { fill: none; stroke: var(--blue); stroke-width: 2.5; }
+    .branch.current { stroke: var(--accent); stroke-width: 4; }
+    .merge-dot { fill: var(--blue); }
+    .merge-dot.current { fill: var(--accent); }
+    .merge-score { fill: var(--muted); font-size: 12px; paint-order: stroke; stroke: var(--panel); stroke-width: 4; }
+    .leaf-label { fill: var(--ink); font-size: 13px; font-weight: 700; }
+    .axis-title { fill: var(--muted); font-size: 12px; font-style: italic; }
+
+    .merge-list {
+      display: grid;
+      gap: 0.45rem;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .merge-list button {
+      display: grid;
+      grid-template-columns: 2rem 1fr auto;
+      width: 100%;
+      min-height: 0;
+      padding: 0.55rem;
+      border-color: transparent;
+      background: transparent;
+      text-align: left;
+    }
+
+    .merge-list button:hover { background: #f4eee3; }
+    .merge-list button.future { opacity: 0.43; }
+    .merge-list button.current { background: #f3dfd8; color: var(--accent-dark); }
+    .merge-number { color: var(--muted); }
+    .merge-score-list { font-variant-numeric: tabular-nums; }
+
+    .matrix-wrap, .data-wrap { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.86rem;
+    }
+
+    th, td {
+      padding: 0.48rem 0.52rem;
+      border-bottom: 1px solid #e6dfd3;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    th {
+      color: #545149;
+      font-weight: 700;
+    }
+
+    th:first-child, td:first-child { text-align: left; }
+
+    .matrix-cell {
+      min-width: 3.4rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .data-table input {
+      width: 6.3rem;
+      padding: 0.42rem 0.48rem;
+      border: 1px solid transparent;
+      border-radius: 5px;
+      background: transparent;
+      text-align: center;
+    }
+
+    .data-table input:hover { border-color: #c8bfb1; }
+    .data-table input:focus { outline: 2px solid rgba(162, 59, 50, 0.32); background: white; }
+
+    .section-heading {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .section-heading p {
+      max-width: 650px;
+      margin-bottom: 0.8rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .callout {
+      margin: 0.9rem 0 0;
+      padding: 0.8rem 1rem;
+      border-left: 4px solid var(--accent);
+      background: #f8ebe6;
+      line-height: 1.45;
+    }
+
+    .method {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+
+    .method p { margin-bottom: 0; color: var(--muted); line-height: 1.5; }
+
+    .eyebrow {
+      margin-bottom: 0.65rem;
+      color: var(--accent-dark);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 850px) {
+      header, .visual-grid, .method { grid-template-columns: 1fr; }
+      .summary { max-width: 28rem; }
+      .step-controls { grid-template-columns: repeat(3, auto); }
+      .step-controls input { grid-column: 1 / -1; }
+    }
+
+    @media (max-width: 520px) {
+      main { width: min(100% - 1rem, 1180px); padding-top: 2rem; }
+      .panel { border-radius: 10px; }
+      .summary span { font-size: 0.66rem; }
+      .leaf-label { font-size: 11px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <p class="eyebrow">Hierarchical clustering, step by step</p>
+        <h1>How languages become a tree</h1>
+        <p class="lede">Start with ten aligned words in eight languages. Measure how similar every language pair is, repeatedly merge the closest groups, and watch a family-like structure emerge without supplying any family labels.</p>
+      </div>
+      <div class="summary" aria-label="Dataset summary">
+        <div><strong>8</strong><span>languages</span></div>
+        <div><strong>10</strong><span>concepts</span></div>
+        <div><strong>7</strong><span>merges</span></div>
+      </div>
+    </header>
+
+    <section class="panel" aria-labelledby="settings-heading">
+      <h2 id="settings-heading">Choose what “similar” means</h2>
+      <div class="controls">
+        <label class="control" for="metric">
+          Similarity measure
+          <select id="metric">
+            <option value="shared">Shared distinct letters (textbook)</option>
+            <option value="letter-jaccard">Letter-set Jaccard</option>
+            <option value="bigram-jaccard">Letter-bigram Jaccard</option>
+          </select>
+        </label>
+        <button id="recluster" class="primary" type="button">Recluster edited data</button>
+        <button id="reset" type="button">Reset words</button>
+        <p id="metric-note" class="metric-note"></p>
+      </div>
+      <p id="first-merge" class="callout"></p>
+    </section>
+
+    <div class="visual-grid">
+      <section class="panel tree-panel" aria-labelledby="tree-heading">
+        <div class="section-heading">
+          <div>
+            <h2 id="tree-heading">Build the dendrogram</h2>
+            <p>Average linkage compares two clusters by averaging all cross-cluster language similarities. Changing the step only reveals the next merge; it does not recompute the tree.</p>
+          </div>
+        </div>
+        <div class="step-controls">
+          <button id="previous" type="button">Previous</button>
+          <button id="play" class="primary" type="button">Play merges</button>
+          <button id="next" type="button">Next</button>
+          <input id="step" type="range" min="0" max="7" value="0" aria-label="Number of clustering merges shown">
+        </div>
+        <p id="status" class="status" aria-live="polite"></p>
+        <svg id="tree" viewBox="0 0 900 450" role="img" aria-labelledby="tree-title tree-description">
+          <title id="tree-title">Hierarchical clustering dendrogram</title>
+          <desc id="tree-description">A tree showing languages joined by their calculated similarity.</desc>
+        </svg>
+      </section>
+
+      <aside class="panel" aria-labelledby="merges-heading">
+        <h2 id="merges-heading">Merge order</h2>
+        <ol id="merge-list" class="merge-list"></ol>
+      </aside>
+    </div>
+
+    <section class="panel" aria-labelledby="matrix-heading">
+      <div class="section-heading">
+        <div>
+          <h2 id="matrix-heading">Pairwise similarities</h2>
+          <p>Each cell summarizes ten aligned word comparisons. Darker cells are more similar under the selected measure.</p>
+        </div>
+      </div>
+      <div id="matrix" class="matrix-wrap"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="data-heading">
+      <div class="section-heading">
+        <div>
+          <h2 id="data-heading">The data</h2>
+          <p>This is the abbreviated Swadesh-style list from the Introduction. Edit any cell, then choose <em>Recluster edited data</em> to see how the similarities and tree change.</p>
+        </div>
+      </div>
+      <div id="data-table" class="data-wrap"></div>
+    </section>
+
+    <section class="panel method" aria-label="Clustering method">
+      <div>
+        <h3>1. Compare words</h3>
+        <p>Compare words only within the same row: <em>pesado</em> with <em>pesante</em>, for example.</p>
+      </div>
+      <div>
+        <h3>2. Compare languages</h3>
+        <p>Average the ten word-pair scores to obtain one similarity for each pair of languages.</p>
+      </div>
+      <div>
+        <h3>3. Merge clusters</h3>
+        <p>Join the most similar available groups and repeat until all eight languages share one tree.</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
