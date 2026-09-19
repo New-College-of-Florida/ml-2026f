@@ -353,26 +353,28 @@ function kernelTrainer(kind, points, settings, random) {
   return { step, snapshot, score };
 }
 
+function gaussianClassParameters(points, label) {
+  const members = points.filter((point) => point.label === label);
+  const count = members.length;
+  if (count === 0) return { label, count, prior: 1e-12, mean: [0, 0], variance: [1, 1] };
+  const mean = [
+    members.reduce((sum, point) => sum + point.x, 0) / count,
+    members.reduce((sum, point) => sum + point.y, 0) / count,
+  ];
+  const variance = [
+    Math.max(0.0025, members.reduce((sum, point) => sum + (point.x - mean[0]) ** 2, 0) / count),
+    Math.max(0.0025, members.reduce((sum, point) => sum + (point.y - mean[1]) ** 2, 0) / count),
+  ];
+  return { label, count, prior: count / points.length, mean, variance };
+}
+
 function gaussianNBTrainer(points) {
   let fitted = false;
   let parameters = null;
   let currentIndex = null;
 
   function fit() {
-    parameters = [BLUE, RED].map((label) => {
-      const members = points.filter((point) => point.label === label);
-      const count = members.length;
-      if (count === 0) return { label, prior: 1e-12, mean: [0, 0], variance: [1, 1] };
-      const mean = [
-        members.reduce((sum, point) => sum + point.x, 0) / count,
-        members.reduce((sum, point) => sum + point.y, 0) / count,
-      ];
-      const variance = [
-        Math.max(0.0025, members.reduce((sum, point) => sum + (point.x - mean[0]) ** 2, 0) / count),
-        Math.max(0.0025, members.reduce((sum, point) => sum + (point.y - mean[1]) ** 2, 0) / count),
-      ];
-      return { label, prior: count / points.length, mean, variance };
-    });
+    parameters = [BLUE, RED].map((label) => gaussianClassParameters(points, label));
     fitted = true;
   }
 
@@ -517,7 +519,7 @@ function accuracy(points, score) {
 }
 
 if (typeof module !== "undefined") {
-  module.exports = { RED, BLUE, DATASETS, mulberry32, shuffle, rbf, predict, createTrainer, accuracy };
+  module.exports = { RED, BLUE, DATASETS, mulberry32, shuffle, rbf, predict, gaussianClassParameters, createTrainer, accuracy };
 }
 
 if (typeof document !== "undefined") {
@@ -548,6 +550,9 @@ if (typeof document !== "undefined") {
     plot: document.querySelector("#plot"),
     surface: document.querySelector("#surface"),
     surfaceExplanation: document.querySelector("#surface-explanation"),
+    gaussianSection: document.querySelector("#gaussian-section"),
+    gaussianX: document.querySelector("#gaussian-x"),
+    gaussianY: document.querySelector("#gaussian-y"),
     undo: document.querySelector("#undo"),
     clear: document.querySelector("#clear"),
   };
@@ -752,6 +757,7 @@ if (typeof document !== "undefined") {
     elements.step.hidden = instantFit || noFit;
     elements.stop.hidden = instantFit || noFit;
     elements.reset.hidden = noFit;
+    elements.gaussianSection.hidden = kind !== "gaussian-nb";
   }
 
   function drawPlot() {
@@ -864,6 +870,98 @@ if (typeof document !== "undefined") {
     context.fillText("score −", 18, canvas.height - 18);
   }
 
+  function drawGaussianFeature(canvas, featureIndex) {
+    const context = canvas.getContext("2d");
+    const coordinate = featureIndex === 0 ? "x" : "y";
+    const left = 70;
+    const right = 22;
+    const plotWidth = canvas.width - left - right;
+    const rows = [
+      { label: BLUE, name: "blue", color: "49, 95, 120", baseline: 137 },
+      { label: RED, name: "red", color: "164, 61, 53", baseline: 270 },
+    ];
+    const models = rows.map((row) => ({ ...row, model: gaussianClassParameters(points, row.label) }));
+    const peakDensity = Math.max(...models.map(({ model }) => 1 / Math.sqrt(2 * Math.PI * model.variance[featureIndex])));
+    const toCanvasX = (value) => left + (value + BOUNDS) / (2 * BOUNDS) * plotWidth;
+
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = "#fffefa";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.font = "13px Georgia";
+
+    models.forEach(({ label, name, color, baseline, model }) => {
+      context.strokeStyle = "rgba(104, 102, 95, 0.55)";
+      context.lineWidth = 1;
+      context.beginPath();
+      context.moveTo(left, baseline);
+      context.lineTo(canvas.width - right, baseline);
+      context.stroke();
+
+      if (model.count > 0) {
+        const variance = model.variance[featureIndex];
+        const mean = model.mean[featureIndex];
+        const density = (value) => Math.exp(-0.5 * (value - mean) ** 2 / variance) / Math.sqrt(2 * Math.PI * variance);
+        context.beginPath();
+        context.moveTo(left, baseline);
+        for (let sample = 0; sample <= 220; sample += 1) {
+          const value = -BOUNDS + sample / 220 * 2 * BOUNDS;
+          const height = density(value) / peakDensity * 76;
+          context.lineTo(toCanvasX(value), baseline - height);
+        }
+        context.lineTo(canvas.width - right, baseline);
+        context.closePath();
+        context.fillStyle = `rgba(${color}, 0.22)`;
+        context.fill();
+        context.strokeStyle = `rgb(${color})`;
+        context.lineWidth = 2.2;
+        context.stroke();
+
+        const meanX = toCanvasX(mean);
+        context.save();
+        context.setLineDash([5, 4]);
+        context.strokeStyle = `rgba(${color}, 0.82)`;
+        context.lineWidth = 1.4;
+        context.beginPath();
+        context.moveTo(meanX, baseline + 8);
+        context.lineTo(meanX, baseline - 83);
+        context.stroke();
+        context.restore();
+      }
+
+      points.filter((point) => point.label === label).forEach((point, index) => {
+        context.beginPath();
+        context.arc(toCanvasX(point[coordinate]), baseline + (index % 3 - 1) * 2.4, 3.5, 0, 2 * Math.PI);
+        context.fillStyle = `rgba(${color}, 0.82)`;
+        context.fill();
+        context.strokeStyle = "rgba(255, 255, 255, 0.8)";
+        context.lineWidth = 0.7;
+        context.stroke();
+      });
+
+      context.fillStyle = `rgb(${color})`;
+      context.font = "bold 14px Georgia";
+      context.fillText(name, 10, baseline + 5);
+      context.font = "13px Georgia";
+      context.fillStyle = "#68665f";
+      const statistics = model.count > 0
+        ? `μ = ${model.mean[featureIndex].toFixed(2)}    σ² = ${model.variance[featureIndex].toFixed(3)}`
+        : "no examples";
+      context.fillText(statistics, left, baseline - 91);
+    });
+
+    context.fillStyle = "#68665f";
+    context.font = "12px Georgia";
+    [-1, -0.5, 0, 0.5, 1].forEach((tick) => {
+      const x = toCanvasX(tick);
+      context.fillText(String(tick), x - 8, canvas.height - 8);
+    });
+  }
+
+  function drawGaussianPanels() {
+    drawGaussianFeature(elements.gaussianX, 0);
+    drawGaussianFeature(elements.gaussianY, 1);
+  }
+
   function updateView() {
     const state = currentState();
     elements.accuracy.textContent = `${(accuracy(points, state.score) * 100).toFixed(1)}%`;
@@ -874,6 +972,7 @@ if (typeof document !== "undefined") {
     elements.example.textContent = state.currentIndex === null ? "—" : `${state.currentIndex + 1} / ${points.length}`;
     drawPlot();
     drawSurface();
+    if (elements.algorithm.value === "gaussian-nb") drawGaussianPanels();
   }
 
   function chooseDataset(key) {

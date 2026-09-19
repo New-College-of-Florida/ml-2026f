@@ -25,6 +25,11 @@ For kNN, the reported score is leave-one-out accuracy: when a stored example is
 evaluated, that example cannot select itself as a neighbor. The decision-region
 plot still uses every stored example when classifying new locations.
 
+Selecting Gaussian Naive Bayes reveals a pair of one-dimensional distribution
+panels below the score surface. They separate the x- and y-coordinates and show
+the observed class values, fitted means, variances, and shaded Gaussian density
+for each class.
+
 ## Development check
 
 Run the dependency-free core checks with:

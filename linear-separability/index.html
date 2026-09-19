@@ -181,6 +181,21 @@
     .surface-note { color: var(--muted); line-height: 1.55; }
     .surface-note strong { color: var(--ink); }
 
+    .gaussian-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .gaussian-card {
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fffefa;
+    }
+    .gaussian-card h3 { margin-bottom: 0.2rem; }
+    .gaussian-card p { margin-bottom: 0.75rem; color: var(--muted); font-size: 0.88rem; }
+
     .algorithm-note {
       margin: 0.8rem 0 0;
       color: var(--muted);
@@ -190,7 +205,7 @@
     code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em; }
 
     @media (max-width: 850px) {
-      .workspace, .surface-grid { grid-template-columns: 1fr; }
+      .workspace, .surface-grid, .gaussian-grid { grid-template-columns: 1fr; }
       main { width: min(100% - 1rem, 720px); padding-top: 2rem; }
     }
     @media (max-width: 520px) {
@@ -320,6 +335,24 @@
           <p id="surface-explanation">For a linear classifier, the score surface is a plane. Its intersection with score zero is the straight decision boundary shown above.</p>
         </div>
       </div>
+    </section>
+
+    <section class="panel" id="gaussian-section" aria-labelledby="gaussian-heading" hidden>
+      <h2 id="gaussian-heading">3. Separate the coordinates</h2>
+      <p class="lede">Gaussian Naive Bayes treats the two coordinates as separate measurements. For each coordinate and class, fitting means estimating only a mean and a variance: four small bell curves in all.</p>
+      <div class="gaussian-grid">
+        <article class="gaussian-card">
+          <h3>Feature 1: horizontal position</h3>
+          <p>The original x-coordinates, viewed on their own.</p>
+          <canvas id="gaussian-x" width="600" height="330" aria-label="Class-conditional Gaussian distributions for feature 1"></canvas>
+        </article>
+        <article class="gaussian-card">
+          <h3>Feature 2: vertical position</h3>
+          <p>The original y-coordinates, rotated onto a horizontal axis.</p>
+          <canvas id="gaussian-y" width="600" height="330" aria-label="Class-conditional Gaussian distributions for feature 2"></canvas>
+        </article>
+      </div>
+      <p class="algorithm-note">The dots are the observed values. Each dashed line marks a class mean; the width of the shaded bell is determined by that class’s variance. The model multiplies the two feature likelihoods by the class prior—or, equivalently, adds their logarithms.</p>
     </section>
   </main>
   <script src="app.js"></script>

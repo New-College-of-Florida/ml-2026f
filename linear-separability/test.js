@@ -1,7 +1,7 @@
 "use strict";
 
 const assert = require("node:assert/strict");
-const { DATASETS, createTrainer, accuracy, rbf } = require("./app.js");
+const { DATASETS, createTrainer, accuracy, gaussianClassParameters, rbf } = require("./app.js");
 
 const defaults = {
   learningRate: 0.15,
@@ -42,6 +42,10 @@ assert.ok(accuracy(xor, kernelXor.score) > 0.97, "an RBF perceptron should solve
 
 const naiveBayes = finish("gaussian-nb", DATASETS.overlap.make());
 assert.ok(Number.isFinite(naiveBayes.score({ x: 0.2, y: -0.1 })), "Gaussian NB should return finite scores");
+
+const moments = gaussianClassParameters([{ x: -1, y: 2, label: 1 }, { x: 1, y: 4, label: 1 }], 1);
+assert.deepEqual(moments.mean, [0, 3], "Gaussian means should be estimated per coordinate");
+assert.deepEqual(moments.variance, [1, 1], "Gaussian variances should be estimated per coordinate");
 
 const ensemble = finish("ensemble", firstClean, { ensembleSize: 7 });
 assert.equal(ensemble.epoch, 7, "each ensemble member should complete exactly one epoch");
