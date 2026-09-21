@@ -284,6 +284,36 @@
     .data-table input:hover { border-color: #c8bfb1; }
     .data-table input:focus { outline: 2px solid rgba(162, 59, 50, 0.32); background: white; }
 
+    .data-table .custom-column { background: rgba(220, 235, 237, 0.34); }
+
+    .custom-language-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem 1.25rem;
+      align-items: center;
+      margin: 0.2rem 0 1rem;
+      padding: 0.85rem 1rem;
+      border-left: 4px solid var(--blue);
+      background: var(--soft-blue);
+    }
+
+    .custom-language-controls label { color: #3f5458; font-weight: 700; }
+    .custom-language-controls input[type="text"] {
+      width: 11rem;
+      margin-left: 0.35rem;
+      padding: 0.42rem 0.55rem;
+      border: 1px solid #9eaaa9;
+      border-radius: 6px;
+      background: white;
+    }
+    .custom-language-controls input[type="checkbox"] {
+      width: 1rem;
+      height: 1rem;
+      margin-right: 0.35rem;
+      accent-color: var(--blue);
+      vertical-align: -0.12rem;
+    }
+
     .section-heading {
       display: flex;
       flex-wrap: wrap;
@@ -348,9 +378,9 @@
         <p class="lede">Start with ten aligned words in eight languages. Measure how similar every language pair is, repeatedly merge the closest groups, and watch a family-like structure emerge without supplying any family labels.</p>
       </div>
       <div class="summary" aria-label="Dataset summary">
-        <div><strong>8</strong><span>languages</span></div>
+        <div><strong id="language-count">8</strong><span>languages</span></div>
         <div><strong>10</strong><span>concepts</span></div>
-        <div><strong>7</strong><span>merges</span></div>
+        <div><strong id="merge-count">7</strong><span>merges</span></div>
       </div>
     </header>
 
@@ -413,8 +443,17 @@
       <div class="section-heading">
         <div>
           <h2 id="data-heading">The data</h2>
-          <p>This is the abbreviated Swadesh-style list from the Introduction. Edit any cell, then choose <em>Recluster edited data</em> to see how the similarities and tree change.</p>
+          <p>This is the abbreviated Swadesh-style list from the Introduction. Edit any cell, add your own language if you wish, then choose <em>Recluster edited data</em> to see how the similarities and tree change.</p>
         </div>
+      </div>
+      <div class="custom-language-controls">
+        <label for="custom-language-name">Your language:
+          <input id="custom-language-name" type="text" value="My language" maxlength="30">
+        </label>
+        <label for="include-custom-language">
+          <input id="include-custom-language" type="checkbox">
+          Include your language in the clustering
+        </label>
       </div>
       <div id="data-table" class="data-wrap"></div>
     </section>
@@ -430,7 +469,7 @@
       </div>
       <div>
         <h3>3. Merge clusters</h3>
-        <p>Join the most similar available groups and repeat until all eight languages share one tree.</p>
+        <p>Join the most similar available groups and repeat until all included languages share one tree.</p>
       </div>
     </section>
   </main>

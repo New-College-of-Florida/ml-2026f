@@ -25,6 +25,10 @@ const DEFAULT_DATA = {
   ],
 };
 
+function emptyCustomLanguage(rowCount = DEFAULT_DATA.concepts.length) {
+  return { name: "My language", words: Array.from({ length: rowCount }, () => "") };
+}
+
 function cloneData(data) {
   return {
     concepts: data.concepts.map((concept) => ({ ...concept })),
@@ -255,10 +259,17 @@ if (typeof document !== "undefined") {
     mergeList: document.querySelector("#merge-list"),
     matrix: document.querySelector("#matrix"),
     dataTable: document.querySelector("#data-table"),
+    customLanguageName: document.querySelector("#custom-language-name"),
+    includeCustomLanguage: document.querySelector("#include-custom-language"),
+    languageCount: document.querySelector("#language-count"),
+    mergeCount: document.querySelector("#merge-count"),
   };
 
   const state = {
     data: cloneData(DEFAULT_DATA),
+    customLanguage: emptyCustomLanguage(),
+    includeCustomLanguage: false,
+    clusterData: cloneData(DEFAULT_DATA),
     result: null,
     step: 0,
     timer: null,
@@ -280,10 +291,11 @@ if (typeof document !== "undefined") {
     table.className = "data-table";
     const head = document.createElement("thead");
     const headRow = document.createElement("tr");
-    for (const label of ["No.", "Concept", ...state.data.languages.map((language) => language.name)]) {
+    for (const label of ["No.", "Concept", ...state.data.languages.map((language) => language.name), `${state.customLanguage.name} (yours)`]) {
       const cell = document.createElement("th");
       cell.scope = "col";
       cell.textContent = label;
+      if (label.endsWith("(yours)")) cell.className = "custom-column";
       headRow.append(cell);
     }
     head.append(headRow);
@@ -309,6 +321,15 @@ if (typeof document !== "undefined") {
         cell.append(input);
         tableRow.append(cell);
       });
+      const customCell = document.createElement("td");
+      customCell.className = "custom-column";
+      const customInput = document.createElement("input");
+      customInput.value = state.customLanguage.words[row];
+      customInput.dataset.customRow = row;
+      customInput.placeholder = "your word";
+      customInput.setAttribute("aria-label", `${state.customLanguage.name}, ${concept.gloss}`);
+      customCell.append(customInput);
+      tableRow.append(customCell);
       body.append(tableRow);
     });
     table.append(body);
@@ -317,10 +338,25 @@ if (typeof document !== "undefined") {
 
   function collectEditedData() {
     const updated = cloneData(state.data);
-    for (const input of elements.dataTable.querySelectorAll("input")) {
+    for (const input of elements.dataTable.querySelectorAll("input[data-language]")) {
       updated.languages[Number(input.dataset.language)].words[Number(input.dataset.row)] = input.value.trim();
     }
-    return updated;
+    const customLanguage = {
+      name: elements.customLanguageName.value.trim() || "My language",
+      words: [...state.customLanguage.words],
+    };
+    for (const input of elements.dataTable.querySelectorAll("input[data-custom-row]")) {
+      customLanguage.words[Number(input.dataset.customRow)] = input.value.trim();
+    }
+    return { data: updated, customLanguage };
+  }
+
+  function activeData() {
+    const data = cloneData(state.data);
+    if (state.includeCustomLanguage) {
+      data.languages.push({ name: state.customLanguage.name, words: [...state.customLanguage.words] });
+    }
+    return data;
   }
 
   function renderMatrix() {
@@ -328,7 +364,7 @@ if (typeof document !== "undefined") {
     const head = document.createElement("thead");
     const headRow = document.createElement("tr");
     headRow.append(document.createElement("th"));
-    for (const language of state.data.languages) {
+    for (const language of state.clusterData.languages) {
       const cell = document.createElement("th");
       cell.scope = "col";
       cell.textContent = language.name;
@@ -344,7 +380,7 @@ if (typeof document !== "undefined") {
       const tableRow = document.createElement("tr");
       const heading = document.createElement("th");
       heading.scope = "row";
-      heading.textContent = state.data.languages[rowIndex].name;
+      heading.textContent = state.clusterData.languages[rowIndex].name;
       tableRow.append(heading);
       row.forEach((score, columnIndex) => {
         const cell = document.createElement("td");
@@ -355,7 +391,7 @@ if (typeof document !== "undefined") {
           cell.textContent = formatScore(score);
           const alpha = 0.06 + 0.48 * (score / maximum);
           cell.style.background = `rgba(39, 93, 105, ${alpha})`;
-          cell.title = `${state.data.languages[rowIndex].name} and ${state.data.languages[columnIndex].name}: ${formatScore(score)}`;
+          cell.title = `${state.clusterData.languages[rowIndex].name} and ${state.clusterData.languages[columnIndex].name}: ${formatScore(score)}`;
         }
         tableRow.append(cell);
       });
@@ -379,7 +415,7 @@ if (typeof document !== "undefined") {
       number.className = "merge-number";
       number.textContent = `${merge.step}.`;
       const names = document.createElement("span");
-      names.textContent = `${shortClusterLabel(merge.left, state.data)} + ${shortClusterLabel(merge.right, state.data)}`;
+      names.textContent = `${shortClusterLabel(merge.left, state.clusterData)} + ${shortClusterLabel(merge.right, state.clusterData)}`;
       const score = document.createElement("span");
       score.className = "merge-score-list";
       score.textContent = formatScore(merge.similarity);
@@ -445,13 +481,13 @@ if (typeof document !== "undefined") {
     elements.firstMerge.innerHTML = "";
     const strong = document.createElement("strong");
     strong.textContent = "First result: ";
-    elements.firstMerge.append(strong, `${shortClusterLabel(first.left, state.data)} and ${shortClusterLabel(first.right, state.data)} are closest at ${formatScore(first.similarity)} ${metric.label} per aligned row.`);
+    elements.firstMerge.append(strong, `${shortClusterLabel(first.left, state.clusterData)} and ${shortClusterLabel(first.right, state.clusterData)} are closest at ${formatScore(first.similarity)} ${metric.label} per aligned row.`);
 
     if (state.step === 0) {
-      elements.status.textContent = "No merges yet. Select Next or Play merges to begin with eight separate languages.";
+      elements.status.textContent = `No merges yet. Select Next or Play merges to begin with ${state.clusterData.languages.length} separate languages.`;
     } else {
       const merge = state.result.merges[state.step - 1];
-      elements.status.textContent = `Merge ${state.step} of ${state.result.merges.length}: ${shortClusterLabel(merge.left, state.data)} joins ${shortClusterLabel(merge.right, state.data)} at similarity ${formatScore(merge.similarity)}.`;
+      elements.status.textContent = `Merge ${state.step} of ${state.result.merges.length}: ${shortClusterLabel(merge.left, state.clusterData)} joins ${shortClusterLabel(merge.right, state.clusterData)} at similarity ${formatScore(merge.similarity)}.`;
     }
     elements.previous.disabled = state.step === 0;
     elements.next.disabled = state.step === state.result.merges.length;
@@ -482,7 +518,10 @@ if (typeof document !== "undefined") {
   function recluster({ keepStep = false } = {}) {
     stopPlaying();
     const metric = METRICS[elements.metric.value];
-    state.result = hierarchicalClustering(state.data, metric);
+    state.clusterData = activeData();
+    state.result = hierarchicalClustering(state.clusterData, metric);
+    elements.languageCount.textContent = state.clusterData.languages.length;
+    elements.mergeCount.textContent = state.result.merges.length;
     elements.step.max = state.result.merges.length;
     state.step = keepStep ? Math.min(state.step, state.result.merges.length) : 0;
     renderMatrix();
@@ -490,11 +529,31 @@ if (typeof document !== "undefined") {
   }
 
   elements.recluster.addEventListener("click", () => {
-    state.data = collectEditedData();
+    const edited = collectEditedData();
+    state.data = edited.data;
+    state.customLanguage = edited.customLanguage;
+    state.includeCustomLanguage = elements.includeCustomLanguage.checked;
+    renderDataTable();
     recluster();
   });
   elements.reset.addEventListener("click", () => {
     state.data = cloneData(DEFAULT_DATA);
+    state.customLanguage = emptyCustomLanguage();
+    state.includeCustomLanguage = false;
+    elements.customLanguageName.value = state.customLanguage.name;
+    elements.includeCustomLanguage.checked = false;
+    renderDataTable();
+    recluster();
+  });
+  elements.customLanguageName.addEventListener("input", () => {
+    const heading = elements.dataTable.querySelector("th.custom-column");
+    if (heading) heading.textContent = `${elements.customLanguageName.value.trim() || "My language"} (yours)`;
+  });
+  elements.includeCustomLanguage.addEventListener("change", () => {
+    const edited = collectEditedData();
+    state.data = edited.data;
+    state.customLanguage = edited.customLanguage;
+    state.includeCustomLanguage = elements.includeCustomLanguage.checked;
     renderDataTable();
     recluster();
   });
