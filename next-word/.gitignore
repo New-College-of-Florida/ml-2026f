@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+data/
+output/model.pt
+output/smoke/
+bengio03a.pdf

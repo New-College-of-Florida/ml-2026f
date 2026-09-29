@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Predict the Next Word</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17212b;
+      --muted: #5d6875;
+      --paper: #f7f4ed;
+      --card: #fffdf8;
+      --line: #d8d2c5;
+      --accent: #176b63;
+      --accent-dark: #0e514b;
+      --accent-soft: #dceeea;
+      --warm: #a7542b;
+      --shadow: 0 18px 50px rgb(54 46 33 / 10%);
+      font-family: Georgia, "Times New Roman", serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 8%, rgb(23 107 99 / 9%), transparent 28rem),
+        var(--paper);
+    }
+
+    button, input, textarea { font: inherit; }
+
+    main {
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 48px 0 64px;
+    }
+
+    header {
+      max-width: 800px;
+      margin-bottom: 28px;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+
+    h1 {
+      margin-bottom: 12px;
+      font-size: clamp(2.1rem, 6vw, 4.5rem);
+      font-weight: 500;
+      line-height: 0.98;
+      letter-spacing: -0.045em;
+    }
+
+    h1 em { color: var(--accent); font-weight: 500; }
+
+    header p, .explanation p {
+      color: var(--muted);
+      font-size: 1.05rem;
+      line-height: 1.6;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.02fr) minmax(360px, 0.98fr);
+      gap: 24px;
+      align-items: start;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgb(255 253 248 / 94%);
+      box-shadow: var(--shadow);
+    }
+
+    .input-card, .results-card, .explanation, .embeddings { padding: clamp(20px, 4vw, 32px); }
+
+    .card-heading {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: baseline;
+      margin-bottom: 16px;
+    }
+
+    h2 { margin-bottom: 0; font-size: 1.35rem; font-weight: 600; }
+
+    .eyebrow, .status, .detail, .model-facts, .token-note {
+      color: var(--muted);
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 0.78rem;
+      line-height: 1.45;
+    }
+
+    .eyebrow {
+      margin-bottom: 8px;
+      color: var(--accent);
+      font-weight: 750;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 250px;
+      resize: vertical;
+      padding: 18px;
+      border: 1px solid #bdb5a6;
+      border-radius: 12px;
+      outline: none;
+      color: var(--ink);
+      background: white;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 1rem;
+      line-height: 1.55;
+      transition: border-color 140ms ease, box-shadow 140ms ease;
+    }
+
+    textarea:focus, .word-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px var(--accent-soft);
+    }
+
+    textarea:disabled { color: #817c72; background: #f2efe8; }
+
+    .samples {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-top: 12px;
+    }
+
+    .sample-button, .clear-button, .context-token, .neighbor-button {
+      border: 1px solid var(--line);
+      color: var(--ink);
+      background: transparent;
+      cursor: pointer;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+    }
+
+    .sample-button, .clear-button {
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+    }
+
+    .sample-button:hover, .clear-button:hover, .context-token:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .status { min-height: 1.2em; margin: 12px 0 0; }
+    .status.error { color: #9d2c25; }
+
+    .context-panel {
+      margin: 22px 0 0;
+      padding: 15px;
+      border-radius: 12px;
+      background: #f1eee6;
+    }
+
+    .context-panel h3 {
+      margin-bottom: 10px;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .context-tokens { display: flex; flex-wrap: wrap; gap: 7px; }
+
+    .context-token {
+      padding: 7px 10px;
+      border-radius: 8px;
+      background: white;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 0.85rem;
+    }
+
+    .context-token.unknown { border-style: dashed; color: var(--warm); }
+    .token-note { margin: 9px 0 0; }
+
+    .predictions { display: grid; gap: 12px; }
+
+    .prediction-label {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 5px;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 0.86rem;
+    }
+
+    .prediction-word { overflow-wrap: anywhere; }
+    .prediction-probability { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+    .bar-track {
+      height: 11px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #e7e2d8;
+    }
+
+    .bar-fill {
+      height: 100%;
+      min-width: 2px;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--accent-dark), #2b968b);
+      transition: width 120ms ease-out;
+    }
+
+    .detail { margin: 16px 0 0; }
+
+    .explanation, .embeddings { margin-top: 24px; }
+    .explanation p:last-child { margin-bottom: 0; }
+
+    .model-figure {
+      margin: 22px 0;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: white;
+    }
+
+    .model-figure img { display: block; width: 100%; height: auto; }
+
+    .model-figure figcaption {
+      margin-top: 12px;
+      color: var(--muted);
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 0.78rem;
+      line-height: 1.5;
+    }
+
+    a { color: var(--accent-dark); text-underline-offset: 0.15em; }
+
+    .model-facts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 18px;
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+    }
+
+    .embedding-controls {
+      display: flex;
+      gap: 8px;
+      margin: 16px 0;
+    }
+
+    .word-input {
+      min-width: 0;
+      flex: 1;
+      padding: 10px 12px;
+      border: 1px solid #bdb5a6;
+      border-radius: 9px;
+      outline: none;
+      background: white;
+    }
+
+    .neighbor-button {
+      padding: 9px 14px;
+      border-radius: 9px;
+      color: white;
+      background: var(--accent);
+    }
+
+    .neighbor-button:hover { background: var(--accent-dark); }
+    .neighbor-list { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    .neighbor {
+      padding: 7px 10px;
+      border-radius: 999px;
+      color: var(--accent-dark);
+      background: var(--accent-soft);
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 0.82rem;
+    }
+
+    @media (max-width: 820px) {
+      main { padding-top: 32px; }
+      .layout { grid-template-columns: 1fr; }
+      textarea { min-height: 180px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">A tiny neural language model</p>
+      <h1>What comes <em>next?</em></h1>
+      <p>Type a phrase and watch a small neural network distribute probability over its next token. It is not an LLM: it sees only the four most recent tokens and learned from roughly two million words of Wikipedia.</p>
+    </header>
+
+    <section class="layout">
+      <div class="card input-card">
+        <div class="card-heading">
+          <h2>Your text</h2>
+          <button class="clear-button" id="clear-button" type="button">Clear</button>
+        </div>
+        <textarea id="text-input" disabled spellcheck="true">at the end of</textarea>
+        <div class="samples" aria-label="Example phrases">
+          <button class="sample-button" type="button" data-text="at the end of">at the end of</button>
+          <button class="sample-button" type="button" data-text="he was born in">he was born in</button>
+          <button class="sample-button" type="button" data-text="the united states of">the united states of</button>
+          <button class="sample-button" type="button" data-text="once upon a time">once upon a time</button>
+        </div>
+        <p class="status" id="status" role="status">Loading the model…</p>
+
+        <div class="context-panel">
+          <h3>The four tokens the model sees</h3>
+          <div class="context-tokens" id="context-tokens"></div>
+          <p class="token-note" id="token-note">Earlier tokens do not affect this prediction.</p>
+        </div>
+      </div>
+
+      <div class="card results-card">
+        <div class="card-heading">
+          <h2>Possible next tokens</h2>
+          <span class="detail" id="top-mass"></span>
+        </div>
+        <div class="predictions" id="predictions" aria-live="polite"></div>
+        <p class="detail"><code>&lt;unk&gt;</code> means “some word outside the model’s 8,000-token vocabulary.” The bars are scaled relative to the most likely token; the printed percentages are actual probabilities.</p>
+      </div>
+    </section>
+
+    <section class="card embeddings">
+      <p class="eyebrow">What the model learned along the way</p>
+      <h2>Explore the embeddings</h2>
+      <p class="detail">Every vocabulary item acquired a 64-number vector during next-token training. Search for a word to find vectors pointing in similar directions. These neighbors can be noisy: the network and its training corpus are deliberately small.</p>
+      <form class="embedding-controls" id="embedding-form">
+        <input class="word-input" id="embedding-word" value="king" aria-label="Vocabulary word">
+        <button class="neighbor-button" type="submit">Find neighbors</button>
+      </form>
+      <p class="status" id="embedding-status"></p>
+      <div class="neighbor-list" id="neighbor-list"></div>
+    </section>
+
+    <section class="card explanation">
+      <p class="eyebrow">Under the hood</p>
+      <h2>The Bengio model, twenty years later</h2>
+      <p>In 2003, Yoshua Bengio, Réjean Ducharme, Pascal Vincent, and Christian Jauvin described a neural language model that learns two things together: a vector representation for every word and a function that predicts the next word from those vectors. Because similar words can acquire nearby vectors, an example can teach the model something about sentences it never saw verbatim.</p>
+      <figure class="model-figure">
+        <img src="bengio-model.svg" alt="Four context tokens pass through a shared embedding lookup, concatenation, a tanh hidden layer, and a softmax output layer.">
+        <figcaption>Our model, redrawn after the architecture in Figure 1 of Bengio et al. (2003). Their formulation allowed an optional direct input-to-output connection; this deliberately small implementation uses only the hidden-layer path shown here.</figcaption>
+      </figure>
+      <p>The model looks up an embedding for each context token and joins the four vectors into one long vector. A hidden layer transforms that representation, and the output layer produces one score for every token in the vocabulary. Softmax turns those 8,000 scores into probabilities that sum to one. When prediction errors flow backward through this network, they also adjust the four selected rows of the embedding matrix—that is how the word vectors are learned.</p>
+      <p class="detail">Reference: Bengio, Ducharme, Vincent, and Jauvin, <a href="https://www.jmlr.org/papers/v3/bengio03a.html">“A Neural Probabilistic Language Model”</a>, <em>Journal of Machine Learning Research</em> 3 (2003), 1137–1155.</p>
+      <div class="model-facts" id="model-facts"></div>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

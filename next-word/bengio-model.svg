@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 430" role="img" aria-labelledby="title description">
+  <title id="title">A feedforward neural language model</title>
+  <description id="description">Four context words share an embedding lookup table. Their vectors are concatenated, transformed by a tanh hidden layer, and passed through a softmax to produce next-token probabilities.</description>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#176b63"/>
+    </marker>
+    <style>
+      .label { fill: #17212b; font-family: Georgia, serif; font-size: 17px; font-weight: 600; }
+      .small { fill: #5d6875; font-family: system-ui, sans-serif; font-size: 14px; }
+      .tiny { fill: #5d6875; font-family: system-ui, sans-serif; font-size: 12px; }
+      .box { fill: #fffdf8; stroke: #b8b1a4; stroke-width: 2; }
+      .soft { fill: #dceeea; stroke: #176b63; stroke-width: 2; }
+      .warm { fill: #f3dfd1; stroke: #a7542b; stroke-width: 2; }
+      .arrow { fill: none; stroke: #176b63; stroke-width: 2.5; marker-end: url(#arrow); }
+      .vector { stroke: #176b63; stroke-width: 6; stroke-linecap: round; }
+    </style>
+  </defs>
+
+  <text class="label" x="28" y="34">Four-token context</text>
+  <g transform="translate(28 58)">
+    <rect class="box" width="138" height="48" rx="10"/>
+    <text class="small" x="69" y="30" text-anchor="middle">at</text>
+    <rect class="box" y="68" width="138" height="48" rx="10"/>
+    <text class="small" x="69" y="98" text-anchor="middle">the</text>
+    <rect class="box" y="136" width="138" height="48" rx="10"/>
+    <text class="small" x="69" y="166" text-anchor="middle">end</text>
+    <rect class="box" y="204" width="138" height="48" rx="10"/>
+    <text class="small" x="69" y="234" text-anchor="middle">of</text>
+  </g>
+
+  <path class="arrow" d="M166 82 C205 82 202 139 232 139"/>
+  <path class="arrow" d="M166 150 C205 150 202 159 232 159"/>
+  <path class="arrow" d="M166 218 C205 218 202 179 232 179"/>
+  <path class="arrow" d="M166 286 C205 286 202 199 232 199"/>
+
+  <g transform="translate(234 87)">
+    <text class="label" x="74" y="-20" text-anchor="middle">Shared lookup</text>
+    <rect class="soft" width="148" height="180" rx="12"/>
+    <path d="M20 25H128M20 52H128M20 79H128M20 106H128M20 133H128M20 160H128M47 14V166M74 14V166M101 14V166" stroke="#176b63" stroke-width="1" opacity=".45"/>
+    <text class="small" x="74" y="204" text-anchor="middle">embedding matrix C</text>
+    <text class="tiny" x="74" y="222" text-anchor="middle">8,000 × 64 learned numbers</text>
+  </g>
+
+  <path class="arrow" d="M382 177 H432"/>
+
+  <g transform="translate(438 68)">
+    <text class="label" x="66" y="-12" text-anchor="middle">Look up vectors</text>
+    <line class="vector" x1="9" y1="30" x2="123" y2="30"/>
+    <line class="vector" x1="9" y1="82" x2="123" y2="82"/>
+    <line class="vector" x1="9" y1="134" x2="123" y2="134"/>
+    <line class="vector" x1="9" y1="186" x2="123" y2="186"/>
+    <g fill="#fffdf8" stroke="#176b63" stroke-width="2">
+      <circle cx="26" cy="30" r="6"/><circle cx="55" cy="30" r="6"/><circle cx="84" cy="30" r="6"/><circle cx="113" cy="30" r="6"/>
+      <circle cx="26" cy="82" r="6"/><circle cx="55" cy="82" r="6"/><circle cx="84" cy="82" r="6"/><circle cx="113" cy="82" r="6"/>
+      <circle cx="26" cy="134" r="6"/><circle cx="55" cy="134" r="6"/><circle cx="84" cy="134" r="6"/><circle cx="113" cy="134" r="6"/>
+      <circle cx="26" cy="186" r="6"/><circle cx="55" cy="186" r="6"/><circle cx="84" cy="186" r="6"/><circle cx="113" cy="186" r="6"/>
+    </g>
+    <text class="small" x="66" y="226" text-anchor="middle">4 × 64</text>
+  </g>
+
+  <path class="arrow" d="M575 177 H621"/>
+
+  <g transform="translate(628 94)">
+    <text class="label" x="61" y="-18" text-anchor="middle">Concatenate</text>
+    <rect class="box" width="122" height="166" rx="12"/>
+    <path d="M22 30H100M22 51H100M22 72H100M22 93H100M22 114H100M22 135H100" stroke="#a7542b" stroke-width="5" stroke-linecap="round"/>
+    <text class="small" x="61" y="193" text-anchor="middle">256 numbers</text>
+  </g>
+
+  <path class="arrow" d="M750 177 H792"/>
+
+  <g transform="translate(800 95)">
+    <text class="label" x="62" y="-18" text-anchor="middle">Hidden layer</text>
+    <rect class="warm" width="124" height="164" rx="62"/>
+    <g fill="#fffdf8" stroke="#a7542b" stroke-width="2">
+      <circle cx="62" cy="31" r="10"/><circle cx="62" cy="66" r="10"/><circle cx="62" cy="101" r="10"/><circle cx="62" cy="136" r="10"/>
+    </g>
+    <text class="small" x="62" y="191" text-anchor="middle">128 tanh units</text>
+  </g>
+
+  <path class="arrow" d="M924 177 H960"/>
+
+  <g transform="translate(966 94)">
+    <text class="label" x="34" y="-18" text-anchor="middle">Softmax</text>
+    <rect class="soft" width="68" height="166" rx="12"/>
+    <rect x="13" y="24" width="42" height="15" rx="4" fill="#176b63" opacity=".95"/>
+    <rect x="13" y="52" width="26" height="15" rx="4" fill="#176b63" opacity=".8"/>
+    <rect x="13" y="80" width="17" height="15" rx="4" fill="#176b63" opacity=".65"/>
+    <rect x="13" y="108" width="11" height="15" rx="4" fill="#176b63" opacity=".5"/>
+    <rect x="13" y="136" width="7" height="15" rx="4" fill="#176b63" opacity=".35"/>
+    <text class="small" x="34" y="193" text-anchor="middle">P(next)</text>
+  </g>
+
+  <path d="M27 365H1014" stroke="#d8d2c5" stroke-width="1.5"/>
+  <text class="small" x="520" y="395" text-anchor="middle">The same embedding matrix is used at every context position and learned jointly with the predictor.</text>
+</svg>
