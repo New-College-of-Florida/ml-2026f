@@ -11,3 +11,4 @@ Machine Learning, Fall 2026
 - [Linear separability and decision boundaries](https://new-college-of-florida.github.io/ml-2026f/linear-separability/)
 - [Lennon or McCartney? Feature design in music](https://new-college-of-florida.github.io/ml-2026f/beatles/)
 - [Predict the next word with a tiny neural network](https://new-college-of-florida.github.io/ml-2026f/next-word/)
+- [From dictionaries to a POS tagger](https://new-college-of-florida.github.io/ml-2026f/scikit-pos-tagger/)
