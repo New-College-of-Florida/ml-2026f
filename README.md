@@ -10,5 +10,6 @@ Machine Learning, Fall 2026
 - [Training a perceptron, one mistake at a time](https://new-college-of-florida.github.io/ml-2026f/perceptron-training/)
 - [Linear separability and decision boundaries](https://new-college-of-florida.github.io/ml-2026f/linear-separability/)
 - [Lennon or McCartney? Feature design in music](https://new-college-of-florida.github.io/ml-2026f/beatles/)
+- [From co-occurrences to word embeddings](https://new-college-of-florida.github.io/ml-2026f/ppmi-svd/)
 - [Predict the next word with a tiny neural network](https://new-college-of-florida.github.io/ml-2026f/next-word/)
 - [From dictionaries to a POS tagger](https://new-college-of-florida.github.io/ml-2026f/scikit-pos-tagger/)
